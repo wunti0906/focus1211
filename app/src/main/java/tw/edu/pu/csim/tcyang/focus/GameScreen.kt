@@ -37,9 +37,9 @@ fun GameScreen(level: String, onBackToMenu: () -> Unit) {
     var score by remember { mutableStateOf(0) }
     var timeLeft by remember { mutableStateOf(config.time) }
     var playing by remember { mutableStateOf(true) }
-    var target by remember { mutableStateOf(Offset.Zero) }
+    var target by remember { mutableStateOf<Offset?>(null) }
     var distractors by remember { mutableStateOf(listOf<Offset>()) }
-    var targetColor by remember { mutableStateOf(colors.random()) }
+    var targetColor by remember { mutableStateOf<Color?>(null) }
 
     // 倒數計時
     LaunchedEffect(playing) {
@@ -52,22 +52,41 @@ fun GameScreen(level: String, onBackToMenu: () -> Unit) {
 
     // 產生目標
     LaunchedEffect(playing) {
+        if (!playing) return@LaunchedEffect
+
+        // 遊戲一開始就立刻產生第一個目標（不等 interval）
+        val x = Random.nextFloat() * 800f + 200f
+        val y = Random.nextFloat() * 1200f + 400f
+        target = Offset(x, y)
+        targetColor = colors.random()
+
+        val list = mutableListOf<Offset>()
+        repeat(config.distractors) {
+            val angle = Random.nextFloat() * 360f
+            val dist = 160f + Random.nextFloat() * 140f
+            val dx = kotlin.math.cos(Math.toRadians(angle.toDouble())).toFloat() * dist
+            val dy = kotlin.math.sin(Math.toRadians(angle.toDouble())).toFloat() * dist
+            list.add(Offset(x + dx, y + dy))
+        }
+        distractors = list
+
+        // 之後才開始循環
         while (playing) {
             delay(config.interval)
-            val x = Random.nextFloat() * 800f + 200f
-            val y = Random.nextFloat() * 1200f + 400f
-            target = Offset(x, y)
+            val newX = Random.nextFloat() * 800f + 200f
+            val newY = Random.nextFloat() * 1200f + 400f
+            target = Offset(newX, newY)
             targetColor = colors.random()
 
-            val list = mutableListOf<Offset>()
+            val newList = mutableListOf<Offset>()
             repeat(config.distractors) {
                 val angle = Random.nextFloat() * 360f
                 val dist = 160f + Random.nextFloat() * 140f
                 val dx = kotlin.math.cos(Math.toRadians(angle.toDouble())).toFloat() * dist
                 val dy = kotlin.math.sin(Math.toRadians(angle.toDouble())).toFloat() * dist
-                list.add(Offset(x + dx, y + dy))
+                newList.add(Offset(newX + dx, newY + dy))
             }
-            distractors = list
+            distractors = newList
         }
     }
 
@@ -88,20 +107,23 @@ fun GameScreen(level: String, onBackToMenu: () -> Unit) {
                 .pointerInput(playing) {
                     if (!playing) return@pointerInput
                     detectTapGestures { offset ->
-                        val d = sqrt((offset.x - target.x).pow(2) + (offset.y - target.y).pow(2))
+                        val currentTarget = target ?: return@detectTapGestures
+                        val d = sqrt((offset.x - currentTarget.x).pow(2) + (offset.y - currentTarget.y).pow(2))
                         if (d < config.size.value * 1.3f) {
-                            score += when (level) { "易" -> 10; "中" -> 20; else -> 30 }
+                            score += when (level) { "易" -> 10; "中" -> 10; else -> 10 }
                         }
                     }
                 }
         ) {
             if (playing) {
                 // 目標（閃爍）
-                drawCircle(
-                    color = targetColor,
-                    radius = config.size.toPx() * scale / 2,
-                    center = target
-                )
+                if (target != null && targetColor != null) {
+                    drawCircle(
+                        color = targetColor!!,
+                        radius = config.size.toPx() * scale / 2,
+                        center = target!!
+                    )
+                }
                 // 干擾物（灰色半透明）
                 distractors.forEach {
                     drawCircle(
