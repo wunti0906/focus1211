@@ -59,7 +59,7 @@ fun MainApp() {
 @Composable
 fun MainMenuScreen(onStartGame: (String) -> Unit) {
     Scaffold(
-        containerColor = Color(0xFFBBDEFB),
+        containerColor = Color(0xFFB3E5FC),
         topBar = {
             Row(
                 modifier = Modifier
